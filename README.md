@@ -1,6 +1,6 @@
 # Prokaryote Growth Temperature EDA + Regression (TEMPURA)
 
-Google Advanced Data Analytics Certificate の **Course 1 最終プロジェクト**
+Google Advanced Data Analytics Certificate の **Course終了プロジェクト**
 をベースに、`Topt_ave`（最適生育温度）を予測する**回帰モデル**まで
 実装したプロジェクト。
 
