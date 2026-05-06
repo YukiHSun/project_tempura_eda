@@ -13,6 +13,10 @@ Google Advanced Data Analytics Certificate の **Course終了プロジェクト*
 - **Phase 2 — Hypothesis Testing**: EDA の観察を 4 仮説として検定
   （Welch t / 一標本 z / カイ二乗 / ANOVA + Tukey HSD）。
   **4 仮説すべて Bonferroni 補正後も棄却**、効果量も中〜大。
+- **Phase 3 — Classification**: `temp_cat`（4 クラス）を予測する分類モデルを構築。
+  特徴量エンジニアリング + **Random Forest / XGBoost の GridSearchCV** で
+  ハイパーパラメータ調整。**Macro F1 = 0.858 / Weighted F1 = 0.963**
+  （RF を最終モデルとして採用）、**Hyperthermophile Recall = 0.968**。
 
 ---
 
@@ -29,14 +33,18 @@ project_tempura_eda/
 │   ├── topt_regression.ipynb              ← 回帰モデル本体（実行済み）
 │   ├── build_modeling_notebook.py         ← 回帰 Notebook 再生成スクリプト
 │   ├── hypothesis_testing.ipynb           ← 仮説検定 Notebook（実行済み）
-│   └── build_hypothesis_notebook.py       ← 仮説検定 Notebook 再生成スクリプト
+│   ├── build_hypothesis_notebook.py       ← 仮説検定 Notebook 再生成スクリプト
+│   ├── topt_classification.ipynb          ← 分類モデル Notebook（実行済み）
+│   └── build_classification_notebook.py   ← 分類 Notebook 再生成スクリプト
 ├── docs/
 │   ├── pace_strategy.md / _ja.md          ← PACE 戦略文書 (rubric Q6) 英/日
 │   ├── executive_summary.md / _ja.md      ← エグゼクティブサマリー (Q7–Q9) 英/日
 │   ├── modeling_plan_ja.md                ← 回帰モデル計画書（日本語）
 │   ├── modeling_results_ja.md             ← 回帰モデル結果サマリー（日本語）
 │   ├── hypothesis_testing_plan_ja.md      ← 仮説検定計画書（日本語）
-│   └── hypothesis_testing_results_ja.md   ← 仮説検定結果サマリー（日本語）
+│   ├── hypothesis_testing_results_ja.md   ← 仮説検定結果サマリー（日本語）
+│   ├── classification_plan_ja.md          ← 分類モデル計画書（日本語）
+│   └── classification_results_ja.md       ← 分類モデル結果サマリー（日本語）
 ├── data/
 │   ├── README.md                       ← データ取得手順・ライセンス
 │   └── raw/                            ← tempura.csv をローカル配置（未コミット想定）
@@ -125,6 +133,52 @@ EDA で観察された4つのパターンが**偶然では説明できない**�
 
 ---
 
+## 拡張（Phase 3）: 分類モデル（`temp_cat` 予測）
+
+EDA で導出した `temp_cat`（Psychrophile / Mesophile / Thermophile / Hyperthermophile）
+の**4 クラス分類**を行い、研究マネージャーが意思決定に直結して使えるモデルを提供。
+詳細は `docs/classification_plan_ja.md`（計画）と
+`docs/classification_results_ja.md`（結果）を参照。
+
+### 主要結果（5-fold StratifiedKFold + GridSearchCV）
+
+| model | Accuracy | F1<sub>weighted</sub> | F1<sub>macro</sub> | Hyper F1 | Hyper Recall |
+|---|---|---|---|---|---|
+| Dummy (most_frequent) | 0.877 | 0.819 | 0.234 | 0.000 | 0.000 |
+| XGBoost (tuned) | 0.960 | 0.961 | 0.849 | 0.942 | 0.968 |
+| **RandomForest (tuned)** | **0.961** | **0.963** | **0.858** | **0.934** | **0.968** |
+
+### 計画書目標との突合
+
+| 指標 | 目標 | 実績（RF） | 判定 |
+|---|---|---|---|
+| Weighted F1 ≥ 0.95 | 0.95 | **0.963** | ✅ |
+| Macro F1 ≥ 0.75 | 0.75 | **0.858** | ✅ |
+| Hyperthermophile F1 ≥ 0.80 | 0.80 | **0.934** | ✅ |
+| Hyperthermophile Recall ≥ 0.85 | 0.85 | **0.968** | ✅ |
+
+**4 項目すべてクリア**。特に超好熱株の Recall = 0.968 は「研究候補の取りこぼしゼロ近傍」。
+
+### 特徴量重要度 Top 5（Random Forest）
+
+| 順位 | 特徴量 | 重要度 |
+|---|---|---|
+| 1 | Tmax | 0.298 |
+| 2 | **Tmean**（新規 FE） | 0.276 |
+| 3 | Tmin | 0.154 |
+| 4 | 16S_GC | 0.102 |
+| 5 | superkingdom_Bacteria | 0.036 |
+
+**新規特徴量 `Tmean` が 2 位**にランクイン。特徴量エンジニアリングの基本操作
+（平均・差分・対数）の有効性が数値で示された。
+
+### 採用モデル方針
+
+- **最終モデル: Random Forest**（macro F1 で XGBoost を 0.009 上回る）
+- 保存モデル: `models/temp_cat_classifier_randomforest.joblib`
+
+---
+
 ## クイックスタート
 
 ```bash
@@ -139,6 +193,9 @@ jupyter notebook notebooks/topt_regression.ipynb
 
 # 仮説検定ノートブック
 jupyter notebook notebooks/hypothesis_testing.ipynb
+
+# 分類モデルノートブック
+jupyter notebook notebooks/topt_classification.ipynb
 ```
 
 両 Notebook は**実行済み**のため、GitHub 上でもそのまま閲覧可能。
@@ -147,12 +204,14 @@ jupyter notebook notebooks/hypothesis_testing.ipynb
 
 ```bash
 cd notebooks
-python build_notebook.py             # tempura_eda.ipynb を再構築
-python build_modeling_notebook.py    # topt_regression.ipynb を再構築
-python build_hypothesis_notebook.py  # hypothesis_testing.ipynb を再構築
-jupyter nbconvert --to notebook --execute tempura_eda.ipynb         --output tempura_eda.ipynb
-jupyter nbconvert --to notebook --execute topt_regression.ipynb     --output topt_regression.ipynb
-jupyter nbconvert --to notebook --execute hypothesis_testing.ipynb  --output hypothesis_testing.ipynb
+python build_notebook.py                # tempura_eda.ipynb を再構築
+python build_modeling_notebook.py       # topt_regression.ipynb を再構築
+python build_hypothesis_notebook.py     # hypothesis_testing.ipynb を再構築
+python build_classification_notebook.py # topt_classification.ipynb を再構築
+jupyter nbconvert --to notebook --execute tempura_eda.ipynb          --output tempura_eda.ipynb
+jupyter nbconvert --to notebook --execute topt_regression.ipynb      --output topt_regression.ipynb
+jupyter nbconvert --to notebook --execute hypothesis_testing.ipynb   --output hypothesis_testing.ipynb
+jupyter nbconvert --to notebook --execute topt_classification.ipynb  --output topt_classification.ipynb
 ```
 
 ---
@@ -185,6 +244,7 @@ TEMPURA — *Database of Growth TEMPeratures of Usual and RAre Prokaryotes*
 - joblib ≥ 1.3（モデル保存用）
 - scipy ≥ 1.11（仮説検定用）
 - statsmodels ≥ 0.14（比率検定・Tukey HSD 用）
+- xgboost ≥ 2.0（分類フェーズ用）
 
 ---
 
