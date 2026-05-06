@@ -10,6 +10,9 @@ Google Advanced Data Analytics Certificate の **Course終了プロジェクト*
   `Topt_ave` の Ridge / HistGradientBoosting 回帰を
   **superkingdom 層化 CV** で実装。
   **全体 MAE 2.50 ℃ / R² 0.918**（計画書目標をすべてクリア）。
+- **Phase 2 — Hypothesis Testing**: EDA の観察を 4 仮説として検定
+  （Welch t / 一標本 z / カイ二乗 / ANOVA + Tukey HSD）。
+  **4 仮説すべて Bonferroni 補正後も棄却**、効果量も中〜大。
 
 ---
 
@@ -21,15 +24,19 @@ project_tempura_eda/
 ├── requirements.txt                     ← 依存パッケージ
 ├── .gitignore                           ← data/raw/ と *.csv を除外
 ├── notebooks/
-│   ├── tempura_eda.ipynb               ← EDA 本体（rubric Q1–Q5、実行済み）
-│   ├── build_notebook.py               ← EDA Notebook 再生成スクリプト
-│   ├── topt_regression.ipynb           ← 回帰モデル本体（実行済み）
-│   └── build_modeling_notebook.py      ← 回帰 Notebook 再生成スクリプト
+│   ├── tempura_eda.ipynb                  ← EDA 本体（rubric Q1–Q5、実行済み）
+│   ├── build_notebook.py                  ← EDA Notebook 再生成スクリプト
+│   ├── topt_regression.ipynb              ← 回帰モデル本体（実行済み）
+│   ├── build_modeling_notebook.py         ← 回帰 Notebook 再生成スクリプト
+│   ├── hypothesis_testing.ipynb           ← 仮説検定 Notebook（実行済み）
+│   └── build_hypothesis_notebook.py       ← 仮説検定 Notebook 再生成スクリプト
 ├── docs/
-│   ├── pace_strategy.md / _ja.md       ← PACE 戦略文書 (rubric Q6) 英/日
-│   ├── executive_summary.md / _ja.md   ← エグゼクティブサマリー (Q7–Q9) 英/日
-│   ├── modeling_plan_ja.md             ← 回帰モデル計画書（日本語）
-│   └── modeling_results_ja.md          ← 回帰モデル結果サマリー（日本語）
+│   ├── pace_strategy.md / _ja.md          ← PACE 戦略文書 (rubric Q6) 英/日
+│   ├── executive_summary.md / _ja.md      ← エグゼクティブサマリー (Q7–Q9) 英/日
+│   ├── modeling_plan_ja.md                ← 回帰モデル計画書（日本語）
+│   ├── modeling_results_ja.md             ← 回帰モデル結果サマリー（日本語）
+│   ├── hypothesis_testing_plan_ja.md      ← 仮説検定計画書（日本語）
+│   └── hypothesis_testing_results_ja.md   ← 仮説検定結果サマリー（日本語）
 ├── data/
 │   ├── README.md                       ← データ取得手順・ライセンス
 │   └── raw/                            ← tempura.csv をローカル配置（未コミット想定）
@@ -90,6 +97,34 @@ Q9 の推奨に沿って、実際に予測モデルを構築・評価した。
 
 ---
 
+## 拡張（Phase 2）: 仮説検定
+
+EDA で観察された4つのパターンが**偶然では説明できない**ことを検定で裏付けた。
+詳細は `docs/hypothesis_testing_plan_ja.md`（計画）と
+`docs/hypothesis_testing_results_ja.md`（結果）を参照。
+
+### 主要結果（α = 0.05 / Bonferroni 補正後 α = 0.0125）
+
+| # | 仮説 | 検定 | p 値 | 効果量 |
+|---|---|---|---|---|
+| H1 | Archaea vs Bacteria の `Topt_ave` 平均差 | Welch t | 4.5 × 10⁻⁷³ | **Cohen's d = +1.17**（大） |
+| H2 | 超好熱株の Archaea 比率 > 全体比率 (6.35%) | 一標本 z（比率・片側） | ≈ 0 | p̂ = **0.92**（14.5 倍） |
+| H3 | `temp_cat` × `superkingdom` の独立性 | カイ二乗 | ≈ 0 | **Cramér's V = 0.441** |
+| H4 | 4 温度カテゴリ間での `16S_GC` 平均差 | 一元配置 ANOVA + Tukey HSD | ≈ 0 | **η² = 0.249**（大） |
+
+**4 仮説すべて Bonferroni 補正後も棄却**。Tukey HSD により H4 は 6 ペア全てで有意差があり、
+好冷 → 中温 → 好熱 → 超好熱と進むにつれて 16S_GC が単調増加することが確認された。
+
+### Phase 2 の位置づけ
+
+- EDA の観察 = **記述的事実**
+- Phase 2 検定 = **統計的事実**
+- Phase 1.5 回帰 = **予測可能性の確認**
+
+3 者が相互補完的に揃ったことで、TEMPURA の分析は「分析フェーズとしては完結」している。
+
+---
+
 ## クイックスタート
 
 ```bash
@@ -101,6 +136,9 @@ jupyter notebook notebooks/tempura_eda.ipynb
 
 # 回帰モデルノートブック
 jupyter notebook notebooks/topt_regression.ipynb
+
+# 仮説検定ノートブック
+jupyter notebook notebooks/hypothesis_testing.ipynb
 ```
 
 両 Notebook は**実行済み**のため、GitHub 上でもそのまま閲覧可能。
@@ -109,10 +147,12 @@ jupyter notebook notebooks/topt_regression.ipynb
 
 ```bash
 cd notebooks
-python build_notebook.py           # tempura_eda.ipynb を再構築
-python build_modeling_notebook.py  # topt_regression.ipynb を再構築
-jupyter nbconvert --to notebook --execute tempura_eda.ipynb     --output tempura_eda.ipynb
-jupyter nbconvert --to notebook --execute topt_regression.ipynb --output topt_regression.ipynb
+python build_notebook.py             # tempura_eda.ipynb を再構築
+python build_modeling_notebook.py    # topt_regression.ipynb を再構築
+python build_hypothesis_notebook.py  # hypothesis_testing.ipynb を再構築
+jupyter nbconvert --to notebook --execute tempura_eda.ipynb         --output tempura_eda.ipynb
+jupyter nbconvert --to notebook --execute topt_regression.ipynb     --output topt_regression.ipynb
+jupyter nbconvert --to notebook --execute hypothesis_testing.ipynb  --output hypothesis_testing.ipynb
 ```
 
 ---
@@ -143,6 +183,8 @@ TEMPURA — *Database of Growth TEMPeratures of Usual and RAre Prokaryotes*
 - nbformat ≥ 5.9
 - scikit-learn ≥ 1.4（回帰フェーズ用）
 - joblib ≥ 1.3（モデル保存用）
+- scipy ≥ 1.11（仮説検定用）
+- statsmodels ≥ 0.14（比率検定・Tukey HSD 用）
 
 ---
 
